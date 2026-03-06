@@ -15,6 +15,7 @@ pip install -e .
 ## Usage
 
 ```bash
+source .venv/bin/activate
 python convert.py path/to/document.pdf
 ```
 
