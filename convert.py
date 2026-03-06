@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import logging
 import re
 import sys
 from pathlib import Path
 
 from docling.document_converter import DocumentConverter
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.status import Status
 
 
 def slugify(text: str) -> str:
@@ -33,6 +34,14 @@ def split_by_chapters(markdown: str) -> list[tuple[str, str]]:
     return chapters
 
 
+def get_page_count(pdf_path: Path) -> int:
+    import pypdfium2 as pdfium
+    pdf = pdfium.PdfDocument(pdf_path)
+    count = len(pdf)
+    pdf.close()
+    return count
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print("Usage: python convert.py <pdf_file>")
@@ -47,27 +56,28 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     console = Console()
+    total_pages = get_page_count(pdf_path)
+    console.print(f"[bold]PDF has {total_pages} pages")
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}"),
-        TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Converting PDF...", total=None)
+    logging.getLogger("docling").setLevel(logging.WARNING)
 
+    with Status("[bold blue]Initializing pipeline...", console=console) as status:
         converter = DocumentConverter()
+
+        status.update("[bold blue]Converting PDF (this may take a while)...")
         result = converter.convert(str(pdf_path))
 
-        progress.update(task, description="Exporting to Markdown...")
+        status.update("[bold blue]Exporting to Markdown...")
         markdown = result.document.export_to_markdown()
 
+    console.print("[bold blue]Splitting into chapters...")
     chapters = split_by_chapters(markdown)
 
     if chapters:
         for i, (title, content) in enumerate(chapters, 1):
             filename = f"{i:02d}_{slugify(title)}.md"
             (output_dir / filename).write_text(content, encoding="utf-8")
+            console.print(f"  [dim]{filename}")
         console.print(f"[green]Saved {len(chapters)} chapters to {output_dir}/")
     else:
         out_file = output_dir / f"{slugify(pdf_path.stem)}.md"
