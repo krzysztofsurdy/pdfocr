@@ -35,15 +35,15 @@ def split_by_chapters(markdown: str) -> list[tuple[str, str]]:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python convert.py <pdf_file> [output_dir]")
+        print("Usage: python convert.py <pdf_file>")
         sys.exit(1)
 
-    pdf_path = Path(sys.argv[1])
+    pdf_path = Path(sys.argv[1]).resolve()
     if not pdf_path.exists():
         print(f"File not found: {pdf_path}")
         sys.exit(1)
 
-    output_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("output")
+    output_dir = pdf_path.parent / f"{slugify(pdf_path.stem)}_output"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     console = Console()
